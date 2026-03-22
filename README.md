@@ -83,6 +83,26 @@ src/pygit/
     errors.py        -- Custom exceptions
 ```
 
+## Related Projects
+
+PyGit is part of an educational series where every layer of the
+computing stack is built from scratch:
+
+| Project | What It Teaches |
+|---------|----------------|
+| [PyOS](https://github.com/robcox2910/py-os) | Operating systems |
+| [Pebble](https://github.com/robcox2910/pebble-lang) | Compilers and programming languages |
+| [PyDB](https://github.com/robcox2910/pydb) | Relational databases |
+| [PyStack](https://github.com/robcox2910/pystack) | Full-stack integration |
+| [PyWeb](https://github.com/robcox2910/pyweb) | HTTP web servers |
+
+All projects use TDD, comprehensive documentation with real-world
+analogies, and are designed for learners aged 12+.
+
+## Documentation
+
+Full docs at [robcox2910.github.io/pygit](https://robcox2910.github.io/pygit/)
+
 ## License
 
 MIT

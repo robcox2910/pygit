@@ -24,6 +24,8 @@ dependencies = []
 [project.urls]
 Homepage = "https://github.com/robcox2910/pygit"
 Repository = "https://github.com/robcox2910/pygit"
+Issues = "https://github.com/robcox2910/pygit/issues"
+Documentation = "https://robcox2910.github.io/pygit/"
 
 [project.scripts]
 pygit = "pygit.cli:main"
