@@ -36,6 +36,23 @@ root tree
     └── test_main.py (blob)
 ```
 
+## Trees in PyGit
+
+```python
+from pygit.tree import TreeEntry, build_tree, parse_tree
+
+# Build a tree from file entries.
+entries = [
+    TreeEntry(name="readme.txt", entry_type="blob", hash="abc123"),
+    TreeEntry(name="main.py", entry_type="blob", hash="def456"),
+]
+tree_hash, tree_content = build_tree(entries)
+
+# Parse the tree back from its serialized form.
+restored = parse_tree(tree_content)
+print(restored[0].name)  # "main.py" (sorted by name)
+```
+
 ## What We Test
 
 - A tree stores a list of named entries.

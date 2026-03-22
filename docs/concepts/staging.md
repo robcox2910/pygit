@@ -26,6 +26,22 @@ related. The staging area lets you commit the 3 related changes as
 one commit and save the rest for later. This keeps your history
 clean and meaningful.
 
+## Staging in PyGit
+
+```python
+from pygit.repository import Repository
+
+repo = Repository.init("/path/to/project")
+
+# Stage files for the next commit.
+repo.add("readme.txt")
+repo.add("src/main.py")
+
+# Check what's staged.
+staged = repo.status()
+print(staged)  # {"readme.txt": "abc123...", "src/main.py": "def456..."}
+```
+
 ## What We Test
 
 - Adding a file puts it in the staging area.

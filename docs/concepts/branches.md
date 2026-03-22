@@ -48,6 +48,25 @@ When you commit, Git updates the current branch's pointer to the
 new commit. HEAD doesn't change -- it still points to the branch.
 But the branch now points to a different commit.
 
+## Branches in PyGit
+
+```python
+from pygit.repository import Repository
+
+repo = Repository.init("/path/to/project")
+# ... add files and commit ...
+
+# Create a new branch.
+repo.create_branch("feature")
+
+# List all branches.
+print(repo.list_branches())  # ["feature", "main"]
+
+# Switch to the new branch.
+repo.switch_branch("feature")
+print(repo.current_branch())  # "feature"
+```
+
 ## What We Test
 
 - Creating a branch stores a commit hash in a file.

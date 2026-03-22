@@ -47,7 +47,7 @@ repo.commit("Initial commit", author="Alice")
 
 # View the log.
 for entry in repo.log():
-    print(f"{entry.hash[:8]} {entry.message}")
+    print(f"{entry.commit_hash[:8]} {entry.message}")
 ```
 
 ## What We Test

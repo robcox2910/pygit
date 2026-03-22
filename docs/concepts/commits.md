@@ -42,6 +42,25 @@ other commit points back to what came before.
 To see the full history, you start at the latest commit and follow
 the parent links backwards. That's what `pygit log` does.
 
+## Commits in PyGit
+
+```python
+from pygit.commit import create_commit, parse_commit
+
+# Create a commit pointing to a tree.
+commit_hash, commit_content = create_commit(
+    tree_hash="abc123",
+    parent_hash=None,
+    message="Initial commit",
+    author="Alice",
+)
+
+# Parse the commit back from its serialized form.
+commit = parse_commit(commit_content)
+print(commit.message)  # "Initial commit"
+print(commit.author)   # "Alice"
+```
+
 ## What We Test
 
 - A commit stores tree hash, parent, author, date, and message.

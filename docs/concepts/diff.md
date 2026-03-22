@@ -32,6 +32,22 @@ Diffs tell you:
 - **What's staged** -- differences between working directory and index
 - **What a commit did** -- differences between a commit and its parent
 
+## Diff in PyGit
+
+```python
+from pygit.diff import diff_lines, format_diff
+
+old = "Hello\nWorld"
+new = "Hello\nWorld!\nBye"
+
+changes = diff_lines(old, new)
+print(format_diff(changes))
+#   Hello
+# - World
+# + World!
+# + Bye
+```
+
 ## What We Test
 
 - Added lines show with `+` prefix.
