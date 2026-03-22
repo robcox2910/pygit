@@ -30,12 +30,12 @@ from pygit.objects import ObjectStore
 
 store = ObjectStore(".pygit/objects")
 
-# Store a blob (returns the hash).
-blob_hash = store.write_blob("Hello, world!")
+# Store an object (returns the hash).
+blob_hash = store.write_object("Hello, world!")
 # "943a702d06f34599aee1f8da8ef9f7296031d699"
 
 # Read it back.
-content = store.read_blob(blob_hash)
+content = store.read_object(blob_hash)
 # "Hello, world!"
 ```
 

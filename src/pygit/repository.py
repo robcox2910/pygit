@@ -108,7 +108,7 @@ class Repository:
             raise RepositoryError(msg)
 
         content = full_path.read_text(encoding="utf-8")
-        blob_hash = self._store.write_blob(content)
+        blob_hash = self._store.write_object(content)
 
         # Update the index.
         index = self._read_index()
@@ -145,7 +145,7 @@ class Repository:
             for name, blob_hash in index.items()
         ]
         tree_hash, tree_content = build_tree(entries)
-        self._store.write_blob(tree_content)
+        self._store.write_object(tree_content)
 
         # Get the parent commit (current branch tip).
         parent_hash = self._get_branch_tip()
@@ -157,7 +157,7 @@ class Repository:
             message=message,
             author=author,
         )
-        self._store.write_blob(commit_content)
+        self._store.write_object(commit_content)
 
         # Update the current branch to point to the new commit.
         self._set_branch_tip(commit_hash)
@@ -181,7 +181,7 @@ class Repository:
         current_hash = self._get_branch_tip()
 
         while current_hash:
-            content = self._store.read_blob(current_hash)
+            content = self._store.read_object(current_hash)
             commit = parse_commit(content)
             commits.append(commit)
             current_hash = commit.parent_hash
