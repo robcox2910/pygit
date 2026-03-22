@@ -8,7 +8,7 @@ parent, forming a chain of history.
 
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pygit.hashing import hash_content
 
@@ -53,7 +53,7 @@ def create_commit(
         A tuple of (commit_hash, serialized_commit_content).
 
     """
-    timestamp = datetime.now(tz=timezone.utc).isoformat()
+    timestamp = datetime.now(tz=UTC).isoformat()
     data = {
         "tree": tree_hash,
         "parent": parent_hash,

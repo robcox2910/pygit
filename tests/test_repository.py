@@ -5,7 +5,15 @@ from pathlib import Path
 import pytest
 
 from pygit.errors import RepositoryError
-from pygit.repository import DEFAULT_BRANCH, HEAD_FILE, INDEX_FILE, OBJECTS_DIR, PYGIT_DIR, REFS_DIR, Repository
+from pygit.repository import (
+    DEFAULT_BRANCH,
+    HEAD_FILE,
+    INDEX_FILE,
+    OBJECTS_DIR,
+    PYGIT_DIR,
+    REFS_DIR,
+    Repository,
+)
 
 SAMPLE_FILENAME = "hello.txt"
 SAMPLE_CONTENT = "Hello, world!"

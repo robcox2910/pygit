@@ -10,9 +10,8 @@ from pathlib import Path
 
 from pygit.commit import Commit, create_commit, parse_commit
 from pygit.errors import RepositoryError
-from pygit.hashing import hash_content
 from pygit.objects import ObjectStore
-from pygit.tree import TreeEntry, build_tree, parse_tree
+from pygit.tree import TreeEntry, build_tree
 
 PYGIT_DIR = ".pygit"
 OBJECTS_DIR = "objects"
@@ -50,7 +49,7 @@ class Repository:
         self._store = ObjectStore(self._pygit_dir / OBJECTS_DIR)
 
     @classmethod
-    def init(cls, path: str | Path) -> "Repository":
+    def init(cls, path: str | Path) -> Repository:
         """Create a new repository in the given directory.
 
         Creates the `.pygit` directory structure with objects, refs,
@@ -241,9 +240,7 @@ class Repository:
         if not branch_path.exists():
             msg = f"Branch not found: {name}"
             raise RepositoryError(msg)
-        (self._pygit_dir / HEAD_FILE).write_text(
-            f"ref: {REFS_DIR}/{name}\n", encoding="utf-8"
-        )
+        (self._pygit_dir / HEAD_FILE).write_text(f"ref: {REFS_DIR}/{name}\n", encoding="utf-8")
 
     # -- Internal helpers --
 
@@ -268,7 +265,7 @@ class Repository:
         if not branch_path.exists():
             return None
         tip = branch_path.read_text(encoding="utf-8").strip()
-        return tip if tip else None
+        return tip or None
 
     def _set_branch_tip(self, commit_hash: str) -> None:
         """Update the current branch to point to a commit."""

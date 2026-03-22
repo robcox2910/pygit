@@ -8,6 +8,7 @@ the hash as a subdirectory name (to avoid one huge folder).
 Example:
     Hash: 943a702d06f34599aee1f8da8ef9f7296031d699
     Path: .pygit/objects/94/3a702d06f34599aee1f8da8ef9f7296031d699
+
 """
 
 from pathlib import Path
