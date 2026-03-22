@@ -43,42 +43,50 @@ class ObjectStore:
         rest = object_hash[PREFIX_LENGTH:]
         return self._objects_dir / prefix / rest
 
-    def write_blob(self, content: str) -> str:
-        """Store content as a blob and return its hash.
+    def write_object(self, content: str) -> str:
+        """Store content as an object and return its hash.
 
-        If the blob already exists (same content), this is a no-op
+        Think of it like filing a photo in an album -- once it's
+        filed under its label (hash), you can always find it again.
+        Works for any object type: blobs, trees, or commits.
+
+        If the object already exists (same content), this is a no-op
         (content-addressable means no duplicates).
 
         Args:
-            content: The file content to store.
+            content: The object content to store.
 
         Returns:
             The SHA-1 hash of the content.
 
         """
-        blob_hash = hash_content(content)
-        path = self._object_path(blob_hash)
+        object_hash = hash_content(content)
+        path = self._object_path(object_hash)
         if not path.exists():
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(content, encoding="utf-8")
-        return blob_hash
+        return object_hash
 
-    def read_blob(self, blob_hash: str) -> str:
-        """Retrieve a blob's content by its hash.
+    def read_object(self, object_hash: str) -> str:
+        """Retrieve an object's content by its hash.
+
+        Like looking up a photo in the album by its label -- hand
+        over the hash and get back whatever was stored (blob, tree,
+        or commit).
 
         Args:
-            blob_hash: The SHA-1 hash of the blob.
+            object_hash: The SHA-1 hash of the object.
 
         Returns:
-            The blob's content as a string.
+            The object's content as a string.
 
         Raises:
-            ObjectNotFoundError: If no blob with that hash exists.
+            ObjectNotFoundError: If no object with that hash exists.
 
         """
-        path = self._object_path(blob_hash)
+        path = self._object_path(object_hash)
         if not path.exists():
-            msg = f"Object not found: {blob_hash}"
+            msg = f"Object not found: {object_hash}"
             raise ObjectNotFoundError(msg)
         return path.read_text(encoding="utf-8")
 
