@@ -2,7 +2,8 @@
 
 A diff compares two strings line by line and shows what was added,
 removed, or unchanged. Lines starting with `+` were added, lines
-starting with `-` were removed, and lines with no prefix are the same.
+starting with `-` were removed, and lines with a two-space prefix are
+unchanged.
 
 This is a simple educational diff -- real Git uses more sophisticated
 algorithms (like Myers diff) for better results on large files.
@@ -12,7 +13,11 @@ algorithms (like Myers diff) for better results on large files.
 def diff_lines(old: str, new: str) -> list[str]:
     """Compare two strings line by line and return a diff.
 
-    Uses a simple longest-common-subsequence approach to align lines.
+    Walks both texts once from top to bottom with a greedy scan: when
+    the current lines match they are kept as unchanged; otherwise the
+    line that is missing from the other side is marked removed or added.
+    This is simpler (and less precise) than the longest-common-
+    subsequence algorithms real diff tools use.
 
     Args:
         old: The original text.

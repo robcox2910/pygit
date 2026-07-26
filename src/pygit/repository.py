@@ -11,7 +11,7 @@ from pathlib import Path
 from pygit.commit import Commit, create_commit, parse_commit
 from pygit.errors import RepositoryError
 from pygit.objects import ObjectStore
-from pygit.tree import TreeEntry, build_tree
+from pygit.tree import TreeEntry, build_tree, parse_tree
 
 PYGIT_DIR = ".pygit"
 OBJECTS_DIR = "objects"
@@ -22,10 +22,13 @@ DEFAULT_BRANCH = "main"
 
 
 class Repository:
-    """A PyGit repository.
+    """A PyGit repository -- your project's diary.
 
-    Manage the complete version control lifecycle: init, add, commit,
-    log, branch, and status.
+    Like a diary that keeps every version of your story, the repository
+    remembers all your project's snapshots, tracks its branches, and
+    holds the staging area where you gather changes. It ties everything
+    together and manages the complete version control lifecycle: init,
+    add, commit, log, branch, and status.
 
     """
 
@@ -120,8 +123,12 @@ class Repository:
     def commit(self, message: str, author: str = "Anonymous") -> str:
         """Create a commit from the current staging area.
 
-        Build a tree from the index, create a commit pointing to it,
-        update the current branch, and clear the index.
+        A commit is a *full snapshot*, like a photo of every room in
+        the house -- not just the room you tidied. So we start from the
+        parent commit's snapshot and lay the staged changes on top,
+        which means files committed earlier stay in the picture. Then
+        we create a commit pointing to the new tree, update the current
+        branch, and clear the index.
 
         Args:
             message: The commit message.
@@ -139,16 +146,21 @@ class Repository:
             msg = "Nothing to commit (staging area is empty)"
             raise RepositoryError(msg)
 
-        # Build the tree from the index.
+        # Get the parent commit (current branch tip).
+        parent_hash = self._get_branch_tip()
+
+        # Start from the parent's snapshot, then overlay the staged
+        # changes so previously committed files are not lost.
+        snapshot = self._parent_tree_entries(parent_hash)
+        snapshot.update(index)
+
+        # Build the tree from the full snapshot.
         entries = [
             TreeEntry(name=name, entry_type="blob", hash=blob_hash)
-            for name, blob_hash in index.items()
+            for name, blob_hash in snapshot.items()
         ]
         tree_hash, tree_content = build_tree(entries)
         self._store.write_object(tree_content)
-
-        # Get the parent commit (current branch tip).
-        parent_hash = self._get_branch_tip()
 
         # Create the commit.
         commit_hash, commit_content = create_commit(
@@ -229,6 +241,11 @@ class Repository:
     def switch_branch(self, name: str) -> None:
         """Switch to a different branch.
 
+        Note: this only moves HEAD to point at the branch -- it does
+        not yet update the files in your working directory to match that
+        branch's snapshot (a real ``checkout``). Restoring files on
+        switch is a great exercise to try yourself!
+
         Args:
             name: The branch name to switch to.
 
@@ -243,6 +260,14 @@ class Repository:
         (self._pygit_dir / HEAD_FILE).write_text(f"ref: {REFS_DIR}/{name}\n", encoding="utf-8")
 
     # -- Internal helpers --
+
+    def _parent_tree_entries(self, parent_hash: str | None) -> dict[str, str]:
+        """Return a commit's snapshot as a mapping of file path to blob hash."""
+        if parent_hash is None:
+            return {}
+        parent = parse_commit(self._store.read_object(parent_hash))
+        tree = parse_tree(self._store.read_object(parent.tree_hash))
+        return {entry.name: entry.hash for entry in tree}
 
     def _read_index(self) -> dict[str, str]:
         """Read the staging area from disk."""
