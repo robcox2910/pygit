@@ -21,6 +21,10 @@ feature:              └── C5 ← C6
 Commits C5 and C6 only exist on the `feature` branch. The `main`
 branch doesn't see them until you merge.
 
+> **Heads up:** merging is not yet implemented in PyGit -- it's a
+> great exercise to try yourself! For now you can create, list, and
+> switch branches.
+
 ## What IS a Branch?
 
 Here's the beautiful secret: a branch is just a **text file** that
@@ -66,6 +70,11 @@ print(repo.list_branches())  # ["feature", "main"]
 repo.switch_branch("feature")
 print(repo.current_branch())  # "feature"
 ```
+
+> **Note:** `switch_branch` only moves `HEAD` to the new branch. It
+> does not yet update the files in your working directory to match that
+> branch (a real `checkout`). Restoring files on switch is another
+> great exercise to try yourself.
 
 ## What We Test
 

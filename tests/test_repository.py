@@ -4,7 +4,9 @@ from pathlib import Path
 
 import pytest
 
+from pygit.commit import parse_commit
 from pygit.errors import RepositoryError
+from pygit.objects import ObjectStore
 from pygit.repository import (
     DEFAULT_BRANCH,
     HEAD_FILE,
@@ -14,6 +16,7 @@ from pygit.repository import (
     REFS_DIR,
     Repository,
 )
+from pygit.tree import parse_tree
 
 SAMPLE_FILENAME = "hello.txt"
 SAMPLE_CONTENT = "Hello, world!"
@@ -115,6 +118,26 @@ class TestRepositoryCommit:
         repo.add(SAMPLE_FILENAME)
         repo.commit(COMMIT_MESSAGE)
         assert repo.status() == {}
+
+    def test_commit_is_full_snapshot(self, tmp_path: Path) -> None:
+        """Keep previously committed files in later commit snapshots."""
+        repo = Repository.init(tmp_path)
+        (tmp_path / "a.txt").write_text("first a", encoding="utf-8")
+        (tmp_path / "b.txt").write_text("first b", encoding="utf-8")
+        repo.add("a.txt")
+        repo.add("b.txt")
+        repo.commit(COMMIT_MESSAGE)
+
+        # Change and re-stage only a.txt, then commit again.
+        (tmp_path / "a.txt").write_text("second a", encoding="utf-8")
+        repo.add("a.txt")
+        second_hash = repo.commit(SECOND_COMMIT_MESSAGE)
+
+        # The second commit's tree must still contain b.txt.
+        store = ObjectStore(tmp_path / PYGIT_DIR / OBJECTS_DIR)
+        commit = parse_commit(store.read_object(second_hash))
+        tree_names = {entry.name for entry in parse_tree(store.read_object(commit.tree_hash))}
+        assert tree_names == {"a.txt", "b.txt"}
 
 
 class TestRepositoryLog:

@@ -23,7 +23,8 @@ The diff shows exactly what was added, removed, or changed:
 ```
 
 Lines starting with `-` were removed. Lines starting with `+` were
-added. Unchanged lines have no prefix.
+added. Unchanged lines get a two-space (`  `) prefix, so every line
+lines up neatly.
 
 ## Why Diffs Matter
 
@@ -52,8 +53,8 @@ print(format_diff(changes))
 
 - Added lines show with `+` prefix.
 - Removed lines show with `-` prefix.
-- Unchanged lines have no prefix.
-- Identical files produce an empty diff.
+- Unchanged lines show with a two-space prefix.
+- Identical files produce a diff where every line is unchanged.
 
 ## Next Up
 

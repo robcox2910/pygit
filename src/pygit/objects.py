@@ -9,6 +9,11 @@ Example:
     Hash: 943a702d06f34599aee1f8da8ef9f7296031d699
     Path: .pygit/objects/94/3a702d06f34599aee1f8da8ef9f7296031d699
 
+Note: real Git hashes a small "type and length" header together with
+the content (like a ``blob`` label followed by the byte count). PyGit
+hashes the raw content only, to keep things simple -- so our hashes
+differ from Git's.
+
 """
 
 from pathlib import Path

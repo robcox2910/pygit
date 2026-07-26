@@ -31,6 +31,10 @@ def hash_content(content: str) -> str:
 def hash_bytes(data: bytes) -> str:
     """Calculate the SHA-1 hash of raw bytes.
 
+    Just like ``hash_content``, this takes a fingerprint -- but of raw
+    bytes (think of a photo or a song file) instead of text. The same
+    bytes always produce the same fingerprint.
+
     Args:
         data: The bytes to hash.
 
