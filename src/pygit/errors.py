@@ -15,3 +15,7 @@ class ObjectNotFoundError(PyGitError):
 
 class RepositoryError(PyGitError):
     """Raise when a repository operation fails."""
+
+
+class ObjectTypeError(PyGitError):
+    """Raise when an object's type label isn't the type we asked for."""

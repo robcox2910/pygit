@@ -8,7 +8,7 @@ When you commit, Git builds a tree of the entire project.
 import json
 from dataclasses import dataclass
 
-from pygit.hashing import hash_content
+from pygit.hashing import hash_object
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,7 +44,7 @@ def build_tree(entries: list[TreeEntry]) -> tuple[str, str]:
     content = json.dumps(
         [{"name": e.name, "type": e.entry_type, "hash": e.hash} for e in sorted_entries]
     )
-    tree_hash = hash_content(content)
+    tree_hash = hash_object("tree", content.encode())
     return tree_hash, content
 
 

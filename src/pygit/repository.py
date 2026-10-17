@@ -110,12 +110,13 @@ class Repository:
             msg = f"File not found: {file_path}"
             raise RepositoryError(msg)
 
-        content = full_path.read_text(encoding="utf-8")
-        blob_hash = self._store.write_object(content)
+        # Files are stored as raw bytes, so pictures and other non-text
+        # files work too.
+        blob_hash = self._store.write_object("blob", full_path.read_bytes())
 
         # Update the index.
         index = self._read_index()
-        index[file_path] = blob_hash
+        index[Path(file_path).as_posix()] = blob_hash  # "./src/a.py" -> "src/a.py"
         self._write_index(index)
 
         return blob_hash
@@ -154,13 +155,8 @@ class Repository:
         snapshot = self._parent_tree_entries(parent_hash)
         snapshot.update(index)
 
-        # Build the tree from the full snapshot.
-        entries = [
-            TreeEntry(name=name, entry_type="blob", hash=blob_hash)
-            for name, blob_hash in snapshot.items()
-        ]
-        tree_hash, tree_content = build_tree(entries)
-        self._store.write_object(tree_content)
+        # Build a tree for every folder, from the full snapshot.
+        tree_hash = self._write_tree(snapshot)
 
         # Create the commit.
         commit_hash, commit_content = create_commit(
@@ -169,7 +165,7 @@ class Repository:
             message=message,
             author=author,
         )
-        self._store.write_object(commit_content)
+        self._store.write_object("commit", commit_content.encode())
 
         # Update the current branch to point to the new commit.
         self._set_branch_tip(commit_hash)
@@ -193,7 +189,7 @@ class Repository:
         current_hash = self._get_branch_tip()
 
         while current_hash:
-            content = self._store.read_object(current_hash)
+            content = self._store.read_object(current_hash, "commit").decode()
             commit = parse_commit(content)
             commits.append(commit)
             current_hash = commit.parent_hash
@@ -265,9 +261,45 @@ class Repository:
         """Return a commit's snapshot as a mapping of file path to blob hash."""
         if parent_hash is None:
             return {}
-        parent = parse_commit(self._store.read_object(parent_hash))
-        tree = parse_tree(self._store.read_object(parent.tree_hash))
-        return {entry.name: entry.hash for entry in tree}
+        parent = parse_commit(self._store.read_object(parent_hash, "commit").decode())
+        return self._read_tree(parent.tree_hash)
+
+    def _write_tree(self, files: dict[str, str]) -> str:
+        """Store a tree for a folder (and, inside it, one for every sub-folder).
+
+        ``files`` maps paths like ``"src/lib/util.py"`` to blob hashes. Files
+        directly in this folder become blob entries; everything under a
+        sub-folder is gathered up and turned into that sub-folder's own tree
+        first -- like a table of contents with a mini table of contents for
+        each chapter.
+
+        Returns:
+            The hash of this folder's tree.
+
+        """
+        entries: list[TreeEntry] = []
+        sub_folders: dict[str, dict[str, str]] = {}
+        for path, blob_hash in files.items():
+            first, slash, rest = path.partition("/")
+            if slash:
+                sub_folders.setdefault(first, {})[rest] = blob_hash
+            else:
+                entries.append(TreeEntry(name=first, entry_type="blob", hash=blob_hash))
+        for name, contents in sub_folders.items():
+            entries.append(TreeEntry(name=name, entry_type="tree", hash=self._write_tree(contents)))
+        _tree_hash, tree_content = build_tree(entries)
+        return self._store.write_object("tree", tree_content.encode())
+
+    def _read_tree(self, tree_hash: str, prefix: str = "") -> dict[str, str]:
+        """Flatten a tree (and its sub-trees) back into ``{path: blob hash}``."""
+        files: dict[str, str] = {}
+        for entry in parse_tree(self._store.read_object(tree_hash, "tree").decode()):
+            path = f"{prefix}{entry.name}"
+            if entry.entry_type == "tree":
+                files.update(self._read_tree(entry.hash, prefix=f"{path}/"))
+            else:
+                files[path] = entry.hash
+        return files
 
     def _read_index(self) -> dict[str, str]:
         """Read the staging area from disk."""

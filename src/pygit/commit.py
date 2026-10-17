@@ -10,7 +10,7 @@ import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from pygit.hashing import hash_content
+from pygit.hashing import hash_object
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,7 +62,7 @@ def create_commit(
         "message": message,
     }
     content = json.dumps(data)
-    commit_hash = hash_content(content)
+    commit_hash = hash_object("commit", content.encode())
     return commit_hash, content
 
 
@@ -83,5 +83,5 @@ def parse_commit(content: str) -> Commit:
         author=str(data.get("author", "Unknown")),
         timestamp=str(data.get("timestamp", "")),
         message=str(data.get("message", "")),
-        commit_hash=hash_content(content),
+        commit_hash=hash_object("commit", content.encode()),
     )

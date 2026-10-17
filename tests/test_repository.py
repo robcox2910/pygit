@@ -135,8 +135,9 @@ class TestRepositoryCommit:
 
         # The second commit's tree must still contain b.txt.
         store = ObjectStore(tmp_path / PYGIT_DIR / OBJECTS_DIR)
-        commit = parse_commit(store.read_object(second_hash))
-        tree_names = {entry.name for entry in parse_tree(store.read_object(commit.tree_hash))}
+        commit = parse_commit(store.read_object(second_hash, "commit").decode())
+        tree = parse_tree(store.read_object(commit.tree_hash, "tree").decode())
+        tree_names = {entry.name for entry in tree}
         assert tree_names == {"a.txt", "b.txt"}
 
 
@@ -229,3 +230,72 @@ class TestRepositoryBranches:
         branches = repo.list_branches()
         assert len(branches) == EXPECTED_INITIAL_BRANCH_COUNT
         assert DEFAULT_BRANCH in branches
+
+
+def _tree_at(repo_path: Path, tree_hash: str) -> dict[str, tuple[str, str]]:
+    """Read one tree object as ``{name: (type, hash)}``."""
+    store = ObjectStore(repo_path / PYGIT_DIR / OBJECTS_DIR)
+    entries = parse_tree(store.read_object(tree_hash, "tree").decode())
+    return {e.name: (e.entry_type, e.hash) for e in entries}
+
+
+def _root_tree(repo_path: Path, commit_hash: str) -> dict[str, tuple[str, str]]:
+    """Read the top-level tree of a commit."""
+    store = ObjectStore(repo_path / PYGIT_DIR / OBJECTS_DIR)
+    commit = parse_commit(store.read_object(commit_hash, "commit").decode())
+    return _tree_at(repo_path, commit.tree_hash)
+
+
+class TestFoldersBecomeNestedTrees:
+    """Each folder in the project gets its own tree, just like real Git."""
+
+    def test_files_in_folders_are_stored_in_sub_trees(self, tmp_path: Path) -> None:
+        """Regression: everything used to go in one flat tree named like 'src/main.py'."""
+        repo = Repository.init(tmp_path)
+        (tmp_path / "src" / "lib").mkdir(parents=True)
+        (tmp_path / "README.md").write_text("hi\n", encoding="utf-8")
+        (tmp_path / "src" / "main.py").write_text("print(1)\n", encoding="utf-8")
+        (tmp_path / "src" / "lib" / "util.py").write_text("x = 1\n", encoding="utf-8")
+        for path in ("README.md", "src/main.py", "src/lib/util.py"):
+            repo.add(path)
+        root = _root_tree(tmp_path, repo.commit(COMMIT_MESSAGE))
+        assert root["README.md"][0] == "blob"
+        assert root["src"][0] == "tree"
+        src = _tree_at(tmp_path, root["src"][1])
+        assert set(src) == {"main.py", "lib"}
+        assert src["lib"][0] == "tree"
+        assert set(_tree_at(tmp_path, src["lib"][1])) == {"util.py"}
+
+    def test_next_commit_keeps_files_in_untouched_folders(self, tmp_path: Path) -> None:
+        """Changing one file keeps every other file, however deep, in the snapshot."""
+        repo = Repository.init(tmp_path)
+        (tmp_path / "src" / "lib").mkdir(parents=True)
+        (tmp_path / "src" / "lib" / "util.py").write_text("x = 1\n", encoding="utf-8")
+        (tmp_path / "src" / "main.py").write_text("v1\n", encoding="utf-8")
+        repo.add("src/lib/util.py")
+        repo.add("src/main.py")
+        repo.commit(COMMIT_MESSAGE)
+        (tmp_path / "src" / "main.py").write_text("v2\n", encoding="utf-8")
+        repo.add("src/main.py")
+        root = _root_tree(tmp_path, repo.commit(SECOND_COMMIT_MESSAGE))
+        src = _tree_at(tmp_path, root["src"][1])
+        assert set(src) == {"main.py", "lib"}
+        assert set(_tree_at(tmp_path, src["lib"][1])) == {"util.py"}
+
+
+class TestRealGitCompatibility:
+    """Blob fingerprints match real Git's, byte for byte."""
+
+    def test_added_file_has_the_same_hash_git_would_give_it(self, tmp_path: Path) -> None:
+        """Running git hash-object on a file saying "hello" gives this exact hash."""
+        repo = Repository.init(tmp_path)
+        (tmp_path / "hello.txt").write_bytes(b"hello\n")
+        assert repo.add("hello.txt") == "ce013625030ba8dba906f756967f9e9ca394464a"
+
+    def test_binary_files_can_be_added(self, tmp_path: Path) -> None:
+        """Regression: adding a picture used to crash, because files were read as text."""
+        repo = Repository.init(tmp_path)
+        (tmp_path / "logo.png").write_bytes(b"\x89PNG\r\n\x1a\n\xff\xfe")
+        repo.add("logo.png")
+        repo.commit(COMMIT_MESSAGE)
+        assert "logo.png" in _root_tree(tmp_path, repo.log()[0].commit_hash)
