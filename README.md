@@ -45,7 +45,10 @@ for entry in repo.log():
 ## Features
 
 - **Hashing** -- Every piece of content gets a unique fingerprint using SHA-1,
-  just like real Git.
+  with Git's `blob <size>` label in front -- so file (blob) hashes match
+  `git hash-object` exactly. (Trees and commits use a simpler JSON layout than
+  real Git, so their hashes differ.)
+- **Nested trees** -- Every folder gets its own tree, just like real Git.
 - **Object store** -- Files are stored by their hash, so identical content is
   never duplicated.
 - **Trees** -- Snapshots of your directory structure, like a table of contents.
