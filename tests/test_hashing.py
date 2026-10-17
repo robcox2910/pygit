@@ -1,55 +1,43 @@
 """Tests for the hashing module."""
 
-from pygit.hashing import HASH_LENGTH, hash_bytes, hash_content
+from pygit.hashing import HASH_LENGTH, hash_object, object_header
 
 EXPECTED_HASH_LENGTH = 40
-SAMPLE_CONTENT = "Hello, world!"
-DIFFERENT_CONTENT = "Goodbye, world!"
-SAMPLE_BYTES = b"Hello, world!"
+SAMPLE = b"Hello, world!"
+DIFFERENT = b"Goodbye, world!"
+# What real Git prints for `printf 'hello\n' | git hash-object --stdin`.
+GIT_HASH_OF_HELLO_NEWLINE = "ce013625030ba8dba906f756967f9e9ca394464a"
 
 
-class TestHashContent:
-    """Verify that hash_content produces consistent SHA-1 fingerprints."""
+class TestObjectHeader:
+    """Every object is labelled with its type and size before hashing."""
 
-    def test_same_input_same_hash(self) -> None:
-        """Return the same hash for identical content."""
-        first = hash_content(SAMPLE_CONTENT)
-        second = hash_content(SAMPLE_CONTENT)
-        assert first == second
+    def test_header_is_type_space_size_then_a_zero_byte(self) -> None:
+        """The label looks exactly like real Git's: ``blob 13`` then a zero byte."""
+        assert object_header("blob", SAMPLE) == b"blob 13\x00"
 
-    def test_different_input_different_hash(self) -> None:
-        """Return different hashes for different content."""
-        first = hash_content(SAMPLE_CONTENT)
-        second = hash_content(DIFFERENT_CONTENT)
-        assert first != second
+
+class TestHashObject:
+    """Fingerprints are stable, sensitive to content, and sensitive to type."""
+
+    def test_same_object_same_hash(self) -> None:
+        """Hashing the same object twice gives the same fingerprint."""
+        assert hash_object("blob", SAMPLE) == hash_object("blob", SAMPLE)
+
+    def test_different_content_different_hash(self) -> None:
+        """Different content gives a different fingerprint."""
+        assert hash_object("blob", SAMPLE) != hash_object("blob", DIFFERENT)
+
+    def test_same_bytes_different_type_different_hash(self) -> None:
+        """A blob and a tree with identical bytes still get different fingerprints."""
+        assert hash_object("blob", SAMPLE) != hash_object("tree", SAMPLE)
 
     def test_hash_is_40_char_hex(self) -> None:
-        """Produce a 40-character hexadecimal string."""
-        result = hash_content(SAMPLE_CONTENT)
-        assert len(result) == EXPECTED_HASH_LENGTH
+        """SHA-1 fingerprints are 40 hexadecimal characters."""
+        result = hash_object("blob", SAMPLE)
+        assert len(result) == EXPECTED_HASH_LENGTH == HASH_LENGTH
         assert all(c in "0123456789abcdef" for c in result)
 
-    def test_hash_length_constant_matches(self) -> None:
-        """Ensure the HASH_LENGTH constant equals 40."""
-        assert HASH_LENGTH == EXPECTED_HASH_LENGTH
-
-    def test_empty_string_hashes(self) -> None:
-        """Hash an empty string without error."""
-        result = hash_content("")
-        assert len(result) == EXPECTED_HASH_LENGTH
-
-
-class TestHashBytes:
-    """Verify that hash_bytes produces consistent SHA-1 fingerprints for raw bytes."""
-
-    def test_same_bytes_same_hash(self) -> None:
-        """Return the same hash for identical bytes."""
-        first = hash_bytes(SAMPLE_BYTES)
-        second = hash_bytes(SAMPLE_BYTES)
-        assert first == second
-
-    def test_hash_bytes_is_40_char_hex(self) -> None:
-        """Produce a 40-character hexadecimal string."""
-        result = hash_bytes(SAMPLE_BYTES)
-        assert len(result) == EXPECTED_HASH_LENGTH
-        assert all(c in "0123456789abcdef" for c in result)
+    def test_blob_hash_matches_real_git(self) -> None:
+        """Regression: our blob fingerprints now match ``git hash-object`` exactly."""
+        assert hash_object("blob", b"hello\n") == GIT_HASH_OF_HELLO_NEWLINE
