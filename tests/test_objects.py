@@ -68,3 +68,11 @@ class TestObjectStore:
         store = ObjectStore(tmp_path)
         object_hash = store.write_object("blob", SAMPLE)
         assert (tmp_path / object_hash[:2] / object_hash[2:]).is_file()
+
+    def test_a_damaged_object_file_is_refused_not_a_crash(self, tmp_path: Path) -> None:
+        """Regression: a label that isn't text (byte 0x80) raised UnicodeDecodeError."""
+        store = ObjectStore(tmp_path)
+        (tmp_path / NONEXISTENT_HASH[:2]).mkdir()
+        (tmp_path / NONEXISTENT_HASH[:2] / NONEXISTENT_HASH[2:]).write_bytes(b"\x80")
+        with pytest.raises(ObjectTypeError):
+            store.read_object(NONEXISTENT_HASH, "blob")
