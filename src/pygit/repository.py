@@ -251,7 +251,8 @@ class Repository:
         Raises:
             RepositoryError: If the name isn't allowed, or the branch already
                 exists, or another branch has the same name in different
-                capitals (on a Mac or Windows they would share one file).
+                capitals or a different spelling of an accent (on a Mac or
+                Windows they would share one file).
 
         """
         _check_branch_name(name)
