@@ -289,8 +289,9 @@ names are in the strategy because we guessed at them, but plain
 The fix is a new check that runs before `create_branch` and
 `switch_branch` touch a file: a name must be one plain, visible file
 name (no `/`, `\`, `..`, spaces or invisible characters, and not too
-long), and must not differ from another branch only in capitals.
-`switch_branch` now looks for the exact name in `list_branches()`
+long), and must not differ from another branch only in capitals or in
+how an accent is spelled. (Real Git allows `feature/login`; PyGit keeps
+it simpler.) `switch_branch` now looks for the exact name in `list_branches()`
 instead of asking whether a file exists. Every shrunk name is pinned in
 `tests/test_repository.py`, like this one:
 
