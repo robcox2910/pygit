@@ -18,6 +18,7 @@ See ``docs/property-testing.md`` for the walk-through.
 """
 
 import tempfile
+import unicodedata
 import unittest
 from pathlib import Path
 from typing import cast
@@ -124,6 +125,14 @@ def file_paths() -> st.SearchStrategy[str]:
     return st.sampled_from(FILE_PATHS)
 
 
+def twin_key(name: str) -> str:
+    """Spell a name the way a Mac compares file names: no capitals, accents spelled one way."""
+    # The rule, from docs/concepts/branches.md: two branch names that differ
+    # only in capitals or in how an accent is spelled would share one file on
+    # a Mac, so the second one is refused everywhere.
+    return unicodedata.normalize("NFD", unicodedata.normalize("NFD", name).casefold())
+
+
 class RepositoryMachine(RuleBasedStateMachine):
     """Play random adds, commits, new branches and switches on a Repository and on dicts."""
 
@@ -138,9 +147,12 @@ class RepositoryMachine(RuleBasedStateMachine):
         self.project = Path(self.folder.name) / "outer" / "project"
         (self.project / "src").mkdir(parents=True)
         self.repo = Repository.init(self.project)
-        # Each branch's commits, oldest first. A branch only appears here
-        # once it really exists: main does after the first commit.
-        self.history: dict[str, list[str]] = {}
+        # Each branch's commits as (hash, message), oldest first. A branch
+        # only appears here once it really exists: main does after the first
+        # commit.
+        self.history: dict[str, list[tuple[str, str]]] = {}
+        # Every commit's full snapshot: {file path: blob hash}.
+        self.snapshots: dict[str, dict[str, str]] = {}
         self.current = "main"
         self.staged: dict[str, str] = {}
         self.written: set[str] = set()
@@ -165,14 +177,25 @@ class RepositoryMachine(RuleBasedStateMachine):
             with pytest.raises(RepositoryError):
                 self.repo.commit(message)
             return
+        commits = self.history.get(self.current, [])
+        parent_snapshot = self.snapshots[commits[-1][0]] if commits else {}
         commit_hash = self.repo.commit(message)
-        self.history[self.current] = [*self.history.get(self.current, []), commit_hash]
+        # A commit is a full snapshot: the parent's files, with the staged ones on top.
+        self.snapshots[commit_hash] = {**parent_snapshot, **self.staged}
+        self.history[self.current] = [*commits, (commit_hash, message)]
         self.staged.clear()
+        tree_hash = self.repo.log()[0].tree_hash
+        assert self.repo._read_tree(tree_hash) == self.snapshots[commit_hash]
+
+    def has_twin(self, name: str) -> bool:
+        """Say whether another branch (or the current one) differs from ``name`` only in capitals or accents."""
+        others = {*self.history, self.current} - {name}
+        return any(twin_key(other) == twin_key(name) for other in others)
 
     @rule(target=branches, name=plain_branch_names())
     def create_branch(self, name: str) -> str:
         """Make a branch with an ordinary name; it starts with the current branch's commits."""
-        if name in self.history:
+        if name in self.history or self.has_twin(name):
             with pytest.raises(RepositoryError):
                 self.repo.create_branch(name)
         else:
@@ -183,7 +206,10 @@ class RepositoryMachine(RuleBasedStateMachine):
     @rule(target=branches, name=awkward_branch_names())
     def create_awkward_branch(self, name: str) -> str:
         """Make a branch with a strange name: made properly or refused, and no file lands elsewhere."""
-        if name in self.history:
+        # create_branch above checks that ordinary names succeed; here the
+        # name may be one PyGit should refuse, so either answer is allowed
+        # unless the model knows it must be refused.
+        if name in self.history or self.has_twin(name):
             with pytest.raises(RepositoryError):
                 self.repo.create_branch(name)
         else:
@@ -214,7 +240,7 @@ class RepositoryMachine(RuleBasedStateMachine):
         assert self.repo.list_branches() == sorted(self.history)
         assert self.repo.current_branch() == self.current
         assert self.repo.status() == self.staged
-        logged = [commit.commit_hash for commit in self.repo.log()]
+        logged = [(commit.commit_hash, commit.message) for commit in self.repo.log()]
         assert logged == self.history.get(self.current, [])[::-1]
 
     def files_outside_the_object_store(self) -> set[str]:
