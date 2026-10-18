@@ -76,12 +76,26 @@ print(repo.current_branch())  # "feature"
 > branch (a real `checkout`). Restoring files on switch is another
 > great exercise to try yourself.
 
+## What Makes a Good Branch Name
+
+Because a branch is a file in `.pygit/refs/heads`, its name has to be a
+safe file name. PyGit refuses (with a `RepositoryError`) a name that is
+empty, `.` or `..`, has a `/` or `\` in it, has spaces or invisible
+characters, or is too long for the file system. A name like
+`../escaped` would otherwise climb out of the branches folder!
+
+It also refuses a name that differs from another branch only in
+capitals, like `Feature` next to `feature`. On a Mac or Windows those
+two would be the *same* file, so PyGit refuses them everywhere and
+behaves the same on every computer.
+
 ## What We Test
 
 - Creating a branch stores a commit hash in a file.
 - Listing branches shows all branch names.
 - HEAD tracks the current branch.
 - Switching branches updates HEAD.
+- Unsafe names, and names that differ only in capitals, are refused.
 
 ## What's Next?
 

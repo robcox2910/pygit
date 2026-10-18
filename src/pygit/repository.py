@@ -6,6 +6,7 @@ staging area. This module ties everything together.
 """
 
 import json
+import unicodedata
 from pathlib import Path
 
 from pygit.commit import Commit, create_commit, parse_commit
@@ -19,6 +20,38 @@ REFS_DIR = "refs/heads"
 HEAD_FILE = "HEAD"
 INDEX_FILE = "index"
 DEFAULT_BRANCH = "main"
+# Most file systems refuse a file name longer than 255 bytes.
+MAX_BRANCH_NAME_BYTES = 255
+
+
+def _check_branch_name(name: str) -> None:
+    r"""Refuse a branch name that isn't one plain, visible file name.
+
+    A branch is a file in ``.pygit/refs/heads``, named after the branch, so
+    the name must be safe to use as a file name there: not empty, not ``.``
+    or ``..``, no ``/`` or ``\`` (they would reach into other folders), no
+    spaces or invisible characters (HEAD is a line of text, and they get
+    lost), and short enough for the file system.
+
+    Raises:
+        RepositoryError: If the name isn't allowed.
+
+    """
+    if (
+        name in {"", ".", ".."}
+        or "/" in name
+        or "\\" in name
+        or not name.isprintable()
+        or any(char.isspace() for char in name)
+        or len(name.encode()) > MAX_BRANCH_NAME_BYTES
+    ):
+        msg = f"Invalid branch name: {name!r}"
+        raise RepositoryError(msg)
+
+
+def _same_name_key(name: str) -> str:
+    """Return a name as Mac and Windows compare file names: ignoring case and accent spelling."""
+    return unicodedata.normalize("NFD", unicodedata.normalize("NFD", name).casefold())
 
 
 class Repository:
@@ -212,15 +245,26 @@ class Repository:
             name: The branch name.
 
         Raises:
-            RepositoryError: If the branch already exists.
+            RepositoryError: If the name isn't allowed, or the branch already
+                exists, or another branch has the same name in different
+                capitals (on a Mac or Windows they would share one file).
 
         """
-        branch_path = self._pygit_dir / REFS_DIR / name
-        if branch_path.exists():
+        _check_branch_name(name)
+        existing = self.list_branches()
+        if name in existing:
             msg = f"Branch already exists: {name}"
             raise RepositoryError(msg)
+        for other in sorted({*existing, self.current_branch()}):
+            if other != name and _same_name_key(other) == _same_name_key(name):
+                msg = f"Branch {name!r} differs from {other!r} only in capitals or accents"
+                raise RepositoryError(msg)
         tip = self._get_branch_tip()
-        branch_path.write_text(tip or "", encoding="utf-8")
+        try:
+            (self._pygit_dir / REFS_DIR / name).write_text(tip or "", encoding="utf-8")
+        except OSError as exc:  # e.g. a Mac refuses letters newer than it knows
+            msg = f"Invalid branch name: {name!r} ({exc.strerror})"
+            raise RepositoryError(msg) from exc
 
     def list_branches(self) -> list[str]:
         """Return all branch names."""
@@ -246,11 +290,13 @@ class Repository:
             name: The branch name to switch to.
 
         Raises:
-            RepositoryError: If the branch doesn't exist.
+            RepositoryError: If the name isn't allowed, or the branch doesn't exist.
 
         """
-        branch_path = self._pygit_dir / REFS_DIR / name
-        if not branch_path.exists():
+        _check_branch_name(name)
+        # Look for the exact name in the list: asking the file system would
+        # let "MAIN" find "main" on a Mac.
+        if name not in self.list_branches():
             msg = f"Branch not found: {name}"
             raise RepositoryError(msg)
         (self._pygit_dir / HEAD_FILE).write_text(f"ref: {REFS_DIR}/{name}\n", encoding="utf-8")
