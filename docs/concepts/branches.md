@@ -95,7 +95,8 @@ capitals, like `Feature` next to `feature`, or only in how an accent is
 spelled (`é` can be stored as one character, or as `e` followed by an
 accent mark). On a Mac those twins would be the *same* file (Windows
 ignores capitals too), so PyGit refuses them everywhere and behaves the
-same on every computer.
+same on every computer. That rule is stricter than real Git, which
+allows `Feature` next to `feature` on Linux.
 
 ## What We Test
 
