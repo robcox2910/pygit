@@ -11,3 +11,4 @@ htmlcov/
 .DS_Store
 src/pygit/_version.py
 site/
+.hypothesis/

@@ -49,6 +49,7 @@ nav:
   - Repository: concepts/repository.md
   - Staging: concepts/staging.md
   - Trees: concepts/trees.md
+  - Property Testing: property-testing.md
   # series-nav:start
   - The series:
       - Series home: https://robcox2910.github.io/
