@@ -34,6 +34,7 @@ from pygit.repository import Repository
 from tests.strategies import (
     any_hashes,
     awkward_branch_names,
+    commit_messages,
     file_contents,
     git_hash,
     object_types,
@@ -170,7 +171,7 @@ class RepositoryMachine(RuleBasedStateMachine):
         assert self.repo.add(path) == blob_hash
         self.staged[path] = blob_hash
 
-    @rule(message=st.text(max_size=20))
+    @rule(message=commit_messages())
     def commit(self, message: str) -> None:
         """Commit what's staged: a new commit on the current branch, or RepositoryError if nothing is."""
         if not self.staged:
