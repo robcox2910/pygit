@@ -133,11 +133,18 @@ TWIN_PAIRS = [
     ("main", "MAIN"),
     ("cafe\u0301", "caf\u00e9"),  # e + combining accent, against one letter e-acute
     ("CAFE\u0301", "caf\u00e9"),
+    ("\ufb00", "ff"),  # a ligature is two letters
+    ("\u00df", "ss"),
+    ("\u00df", "SS"),  # German sharp s is ss
+    ("\u017f", "s"),  # long s
+    ("\u03c2", "\u03a3"),  # Greek final sigma, against capital sigma
 ]
 NOT_TWINS = [
     ("feature", "features"),
     ("cafe", "caf\u00e9"),  # an accent is a different letter, not a spelling
     ("a", "b"),
+    ("\u0131", "i"),  # Turkish dotless i is its own letter
+    ("s", "z"),
 ]
 
 
@@ -145,9 +152,15 @@ def twin_key(name: str) -> str:
     """Spell a name for comparing: lower case, each accent as one joined letter."""
     # The rule, from docs/concepts/branches.md: two branch names that differ
     # only in capitals or in how an accent is spelled would share one file on
-    # a Mac, so the second one is refused everywhere. Built from str.lower and
-    # NFC (joined letters), where PyGit uses casefold and NFD (split ones).
-    return unicodedata.normalize("NFC", unicodedata.normalize("NFC", name).lower())
+    # a Mac, so the second one is refused everywhere. Built differently from
+    # PyGit (which uses casefold and NFD): lower, then upper, then lower again
+    # turns every capital, sharp s, long s, final sigma and ligature into its
+    # plain letters, and NFC joins accents. The dotless i is the one letter
+    # that trick would merge with i but a Mac keeps apart, so it is left alone.
+    parts = [
+        unicodedata.normalize("NFC", part.lower().upper().lower()) for part in name.split("\u0131")
+    ]
+    return "\u0131".join(parts)
 
 
 def test_twin_key_agrees_with_the_hand_written_pairs() -> None:
