@@ -283,6 +283,39 @@ class TestRepositoryBranches:
         with pytest.raises(RepositoryError, match="capitals"):
             repo.create_branch("Main")
 
+    def test_a_lowercase_twin_of_a_capital_name_is_refused(self, tmp_path: Path) -> None:
+        """Regression (model check): after "A", the plain name "a" is refused too."""
+        repo = Repository.init(tmp_path)
+        repo.create_branch("A")
+        with pytest.raises(RepositoryError, match="capitals"):
+            repo.create_branch("a")
+        assert repo.list_branches() == ["A"]
+
+    def test_a_damaged_head_is_refused_not_followed(self, tmp_path: Path) -> None:
+        """A hand-edited HEAD pointing outside refs/heads is refused; commit writes nothing outside."""
+        repo = Repository.init(tmp_path)
+        (tmp_path / PYGIT_DIR / HEAD_FILE).write_text("ref: refs/heads/../../x\n", encoding="utf-8")
+        (tmp_path / SAMPLE_FILENAME).write_text(SAMPLE_CONTENT, encoding="utf-8")
+        repo.add(SAMPLE_FILENAME)
+        with pytest.raises(RepositoryError, match="HEAD is damaged"):
+            repo.current_branch()
+        with pytest.raises(RepositoryError, match="HEAD is damaged"):
+            repo.commit(COMMIT_MESSAGE)
+        assert not (tmp_path / PYGIT_DIR / "x").exists()
+
+    def test_a_file_system_refusal_becomes_a_repository_error(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """If the file system refuses the branch file (an OSError), create_branch says RepositoryError."""
+        repo = Repository.init(tmp_path)
+
+        def refuse(*_args: object, **_kwargs: object) -> int:
+            raise OSError(92, "Illegal byte sequence")
+
+        monkeypatch.setattr(Path, "write_text", refuse)
+        with pytest.raises(RepositoryError, match="Illegal byte sequence"):
+            repo.create_branch(BRANCH_NAME)
+
     def test_switching_needs_the_exact_name(self, tmp_path: Path) -> None:
         """Regression: on a Mac switch_branch("MAIN") found main's file and HEAD said MAIN."""
         repo = Repository.init(tmp_path)

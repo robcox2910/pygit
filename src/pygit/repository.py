@@ -50,7 +50,11 @@ def _check_branch_name(name: str) -> None:
 
 
 def _same_name_key(name: str) -> str:
-    """Return a name as Mac and Windows compare file names: ignoring case and accent spelling."""
+    """Return a name as a Mac compares file names: ignoring capitals and how accents are spelled.
+
+    (Windows ignores capitals too, but not accent spelling. Folding both here
+    means PyGit refuses the same names on every computer.)
+    """
     return unicodedata.normalize("NFD", unicodedata.normalize("NFD", name).casefold())
 
 
@@ -272,11 +276,23 @@ class Repository:
         return sorted(p.name for p in refs_dir.iterdir() if p.is_file())
 
     def current_branch(self) -> str:
-        """Return the name of the current branch."""
+        """Return the name of the current branch.
+
+        Raises:
+            RepositoryError: If HEAD names something that isn't a valid
+                branch, such as a hand-edited ``ref: refs/heads/../../x``.
+
+        """
         head = (self._pygit_dir / HEAD_FILE).read_text(encoding="utf-8").strip()
-        if head.startswith("ref: "):
-            return head.removeprefix(f"ref: {REFS_DIR}/")
-        return head
+        name = head.removeprefix(f"ref: {REFS_DIR}/")
+        # HEAD is a file anyone can edit, so check it the way a new name is
+        # checked: otherwise the next commit could write anywhere.
+        try:
+            _check_branch_name(name)
+        except RepositoryError as exc:
+            msg = f"HEAD is damaged: {head!r}"
+            raise RepositoryError(msg) from exc
+        return name
 
     def switch_branch(self, name: str) -> None:
         """Switch to a different branch.
