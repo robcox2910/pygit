@@ -88,7 +88,8 @@ class ObjectStore:
 
         Raises:
             ObjectNotFoundError: If no object with that hash exists.
-            ObjectTypeError: If the object is labelled with a different type.
+            ObjectTypeError: If the object is labelled with a different type
+                (or its label is damaged).
 
         """
         path = self._object_path(object_hash)
@@ -96,9 +97,11 @@ class ObjectStore:
             msg = f"Object not found: {object_hash}"
             raise ObjectNotFoundError(msg)
         header, _, data = path.read_bytes().partition(b"\0")
-        stored_type = header.split(b" ", 1)[0].decode()
-        if stored_type != object_type:
-            msg = f"Object {object_hash} is a {stored_type}, not a {object_type}"
+        # Compare the label as bytes: a damaged file's label may not be text.
+        stored_type = header.split(b" ", 1)[0]
+        if stored_type != object_type.encode():
+            label = stored_type.decode(errors="replace")
+            msg = f"Object {object_hash} is a {label}, not a {object_type}"
             raise ObjectTypeError(msg)
         return data
 
