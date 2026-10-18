@@ -76,5 +76,5 @@ def commit_messages() -> st.SearchStrategy[str]:
     return st.one_of(
         st.text(max_size=20),
         st.sampled_from(["\r", "\n", " ", "\t", "", " \r\n "]),
-        st.builds(lambda lead, body, tail: lead + body + tail, edge, st.text(max_size=10), edge),
+        st.tuples(edge, st.text(max_size=10), edge).map("".join),
     )
