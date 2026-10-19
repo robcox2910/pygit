@@ -34,6 +34,7 @@ from pygit.repository import Repository
 from tests.strategies import (
     any_hashes,
     awkward_branch_names,
+    commit_messages,
     file_contents,
     git_hash,
     object_types,
@@ -125,12 +126,66 @@ def file_paths() -> st.SearchStrategy[str]:
     return st.sampled_from(FILE_PATHS)
 
 
+# Pairs the rule must treat as the same name, and pairs it must not. Written
+# out by hand so the check below does not lean on any code of PyGit's.
+TWIN_PAIRS = [
+    ("feature", "Feature"),
+    ("main", "MAIN"),
+    ("cafe\u0301", "caf\u00e9"),  # e + combining accent, against one letter e-acute
+    ("CAFE\u0301", "caf\u00e9"),
+    ("\ufb00", "ff"),  # a ligature is two letters
+    ("\u00df", "ss"),
+    ("\u00df", "SS"),  # German sharp s is ss
+    ("\u017f", "s"),  # long s
+    ("\u03c2", "\u03a3"),  # Greek final sigma, against capital sigma
+]
+NOT_TWINS = [
+    ("feature", "features"),
+    ("cafe", "caf\u00e9"),  # an accent is a different letter, not a spelling
+    ("a", "b"),
+    ("\u0131", "i"),  # Turkish dotless i is its own letter
+    ("s", "z"),
+]
+
+
 def twin_key(name: str) -> str:
-    """Spell a name the way a Mac compares file names: no capitals, accents spelled one way."""
+    """Spell a name for comparing: lower case, each accent as one joined letter."""
     # The rule, from docs/concepts/branches.md: two branch names that differ
     # only in capitals or in how an accent is spelled would share one file on
-    # a Mac, so the second one is refused everywhere.
-    return unicodedata.normalize("NFD", unicodedata.normalize("NFD", name).casefold())
+    # a Mac, so the second one is refused everywhere. Built differently from
+    # PyGit (which uses casefold and NFD): lower, then upper, then lower again
+    # turns every capital, sharp s, long s, final sigma and ligature into its
+    # plain letters, and NFC joins accents. The dotless i is the one letter
+    # that trick would merge with i but a Mac keeps apart, so it is left alone.
+    parts = [
+        unicodedata.normalize("NFC", part.lower().upper().lower()) for part in name.split("\u0131")
+    ]
+    return "\u0131".join(parts)
+
+
+def test_twin_key_agrees_with_the_hand_written_pairs() -> None:
+    """The model's rule calls the listed twins twins and the listed non-twins different."""
+    assert all(twin_key(one) == twin_key(two) for one, two in TWIN_PAIRS)
+    assert all(twin_key(one) != twin_key(two) for one, two in NOT_TWINS)
+
+
+@pytest.mark.parametrize(("one", "two"), TWIN_PAIRS)
+def test_repository_refuses_a_twin_of_an_existing_branch(
+    one: str, two: str, tmp_path: Path
+) -> None:
+    """A branch whose twin exists is refused."""
+    repo = Repository.init(tmp_path)
+    repo.create_branch(one)
+    with pytest.raises(RepositoryError):
+        repo.create_branch(two)
+
+
+@pytest.mark.parametrize(("one", "two"), NOT_TWINS)
+def test_repository_allows_names_that_are_not_twins(one: str, two: str, tmp_path: Path) -> None:
+    """Two names that are not twins can both be branches."""
+    repo = Repository.init(tmp_path)
+    repo.create_branch(one)
+    repo.create_branch(two)
 
 
 class RepositoryMachine(RuleBasedStateMachine):
@@ -170,7 +225,7 @@ class RepositoryMachine(RuleBasedStateMachine):
         assert self.repo.add(path) == blob_hash
         self.staged[path] = blob_hash
 
-    @rule(message=st.text(max_size=20))
+    @rule(message=commit_messages())
     def commit(self, message: str) -> None:
         """Commit what's staged: a new commit on the current branch, or RepositoryError if nothing is."""
         if not self.staged:

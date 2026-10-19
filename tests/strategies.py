@@ -68,3 +68,13 @@ def awkward_branch_names() -> st.SearchStrategy[str]:
 def plain_branch_names() -> st.SearchStrategy[str]:
     """Make an ordinary branch name: a few lowercase letters, like ``feature`` or ``fix``."""
     return st.text(alphabet="abcdefghij", min_size=1, max_size=6)
+
+
+def commit_messages() -> st.SearchStrategy[str]:
+    r"""Make a commit message, leaning on the edges a careless clean-up would trim: spaces, tabs, ``\r`` and ``\n``."""
+    edge = st.text(alphabet=" \t\r\n", max_size=3)
+    return st.one_of(
+        st.text(max_size=20),
+        st.sampled_from(["\r", "\n", " ", "\t", "", " \r\n "]),
+        st.tuples(edge, st.text(max_size=10), edge).map("".join),
+    )
