@@ -87,6 +87,14 @@ feature ──┘  (both point to the same commit... for now)
 | **Diff** | [diff.md](concepts/diff.md) | Spot the differences between versions |
 | **Branches** | [branches.md](concepts/branches.md) | Parallel timelines for your project |
 
+## Install
+
+```bash
+pip install fromscratch-pygit
+```
+
+Or get the whole series at once with `pip install fromscratch-pystack`. To read the code or run the tests, clone it from [GitHub](https://github.com/robcox2910/pygit).
+
 ## Let's Start!
 
 Head to [Hashing](concepts/hashing.md) to learn how Git creates
