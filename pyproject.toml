@@ -1,5 +1,5 @@
 [project]
-name = "pygit"
+name = "fromscratch-pygit"
 dynamic = ["version"]
 description = "An educational version control system built from scratch in Python"
 readme = "README.md"
