@@ -3,7 +3,7 @@ title: "Build your own Git in Python: how version control works"
 description: "How Git works inside, built from scratch in Python: content hashing, blobs, trees, commits, branches, staging and diffs, explained simply."
 ---
 
-# What Is Version Control?
+# PyGit: Build your own Git in Python
 
 ## The Time Machine for Your Code
 
